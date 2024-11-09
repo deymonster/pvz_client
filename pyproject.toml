@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "pvz-client"
+version = "0.1.0"
+description = "API client for pvz wb"
+authors = ["deymonster <deymonster@yandex.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+aiohttp = "^3.10.10"
+pydantic = "^2.9.2"
+pydantic-settings = "^2.6.1"
+redis = "^5.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
