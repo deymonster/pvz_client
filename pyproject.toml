@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "pvz-client"
+name = "pvz_client"
 version = "0.1.0"
 description = "API client for pvz wb"
 authors = ["deymonster <deymonster@yandex.ru>"]
