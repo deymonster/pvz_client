@@ -5,7 +5,7 @@ from .models import TokenResponse, RequestCodeResponse
 
 
 class ApiAuth:
-    """Auth client for wb franchise"""
+    """Auth client for pvz wb"""
 
     def __init__(self,
                  auth_base_path: str,
