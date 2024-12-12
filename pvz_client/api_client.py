@@ -8,6 +8,9 @@ from .config import settings
 from .api_auth import ApiAuth
 
 from asyncio import gather
+import asyncio
+from pydantic import ValidationError
+
 
 
 class ApiClient:
@@ -109,14 +112,6 @@ class ApiClient:
         else:
             raise ValueError("Expected response_data to be a dictionary with a 'data' key")
 
-    # async def get_overdue_goods_sum(self, external_id: int, pickpoint_id: int) -> OverdueGoodsModel:
-    #     """Get  sum of overdue goods
-
-    #     :param external_id: external_id
-    #     :param pickpoint_id: pickpoint_id
-    #     :return: OverdueGoodsModel
-    #     """
-    #     url = f"https://s-point.wb.ru/s103/api/v2/overdue-goods/sum"
 
     async def get_owner_info(self, pickpoint_id: int, external_id: int) -> OwnerInfoModel:
         """Get information about the pickpoint owner
@@ -160,82 +155,21 @@ class ApiClient:
         else:
             raise ValueError("Expected response_data to be a dictionary with key 'avg_rate'")
 
-    # async def get_operations(self, date_from: str, date_to: str) -> List[OperationModel]:
-    #     """Get all operations for period with pagination
-
-    #     :param date_from: Начальная дата (в формате YYYY-MM-DD).
-    #     :param date_to: Конечная дата (в формате YYYY-MM-DD).
-    #     :return: Список операций.
-    #     """
-
-    #     base_url_name = "point_balance"
-    #     path = "/api/v1/balance/owner/transactions" 
-    #     limit = 100
-    #     offset = 0
-    #     all_operations = []
-
-    #     while True:
-    #         params = {
-    #             "country": "RU",
-    #             "filter.limit": limit,
-    #             "filter.offset": offset,
-    #             "filter.date_from": date_from,
-    #             "filter.date_to": date_to,
-    #         }
-    #         response_data = await self._request(
-    #             base_url_name=base_url_name,
-    #             path=path,
-    #             method="GET",
-    #             params=params,
-    #         )
-
-    #         if isinstance(response_data, dict) and "data" in response_data:
-    #             response = OperationResponse(**response_data)
-    #             all_operations.extend(response.data)
-
-    #             if offset + limit >= response.total_rows:
-    #                 break
-
-    #             offset += limit
-    #         else:
-    #             raise ValueError("Unexpected response format")
-    #     return all_operations
-
-
-    async def parallel_get_operations(self, date_from: str, date_to: str) -> List[OperationModel]:
-        """Get all operations for period with pagination, using parallel requests.
+    async def get_operations(self, date_from: str, date_to: str) -> List[OperationModel]:
+        """Get all operations for period with pagination
 
         :param date_from: Начальная дата (в формате YYYY-MM-DD).
         :param date_to: Конечная дата (в формате YYYY-MM-DD).
         :return: Список операций.
         """
+
         base_url_name = "point_balance"
-        path = "/api/v1/balance/owner/transactions"
+        path = "/api/v1/balance/owner/transactions" 
         limit = 100
+        offset = 0
         all_operations = []
 
-        params = {
-        "country": "RU",
-        "filter.limit": limit,
-        "filter.offset": 0,
-        "filter.date_from": date_from,
-        "filter.date_to": date_to,
-        }
-        response_data = await self._request(
-            base_url_name=base_url_name,
-            path=path,
-            method="GET",
-            params=params,
-        )
-        if not isinstance(response_data, dict) or "data" not in response_data:
-            raise ValueError("Unexpected response format")
-        
-        response = OperationResponse(**response_data)
-        all_operations.extend(response.data)
-
-        total_rows = response.total_rows
-        tasks = []
-        for offset in range(limit, total_rows, limit):
+        while True:
             params = {
                 "country": "RU",
                 "filter.limit": limit,
@@ -243,26 +177,97 @@ class ApiClient:
                 "filter.date_from": date_from,
                 "filter.date_to": date_to,
             }
-            tasks.append(
-                self._request(
+            response_data = await self._request(
                 base_url_name=base_url_name,
                 path=path,
                 method="GET",
                 params=params,
-                )
             )
-        responses = await gather(*tasks)
-
-        for resp in responses:
-            if isinstance(resp, dict) and "data" in resp:
-                response = OperationResponse(**resp)
+            
+            if isinstance(response_data, dict) and "data" in response_data:
+                response = OperationResponse(**response_data)
                 all_operations.extend(response.data)
-            else:
-                raise ValueError("Unexpected response format in one of the responses")
 
+                if offset + limit >= response.total_rows:
+                    break
+
+                offset += limit
+            else:
+                raise ValueError("Unexpected response format")
         return all_operations
 
-    async def get_transaction_details(self, transaction_id: int) -> TransactionDetailModel:
+
+    # async def parallel_get_operations(self, date_from: str, date_to: str) -> List[OperationModel]:
+    #     """Get all operations for period with pagination, using parallel requests.
+
+    #     :param date_from: Начальная дата (в формате YYYY-MM-DD).
+    #     :param date_to: Конечная дата (в формате YYYY-MM-DD).
+    #     :return: Список операций.
+    #     """
+        
+    #     base_url_name = "point_balance"
+    #     path = "/api/v1/balance/owner/transactions"
+    #     limit = 20
+    #     all_operations = []
+
+    #     params = {
+    #     "country": "RU",
+    #     "filter.limit": limit,
+    #     "filter.offset": 0,
+    #     "filter.date_from": date_from,
+    #     "filter.date_to": date_to,
+    #     }
+        
+    #     response_data = await self._request(
+    #         base_url_name=base_url_name,
+    #         path=path,
+    #         method="GET",
+    #         params=params,
+    #     )
+        
+    #     if not isinstance(response_data, dict) or "data" not in response_data:
+    #         raise ValueError("Unexpected response format")
+        
+    #     response = OperationResponse(**response_data)
+    #     all_operations.extend(response.data)
+
+    #     total_rows = response.total_rows
+    #     semaphore = asyncio.Semaphore(max_concurrent_tasks)
+
+    #     async def fetch_with_semaphore(offset: int):
+    #         async with semaphore:
+    #             params = {
+    #                 "country": "RU",
+    #                 "filter.limit": limit,
+    #                 "filter.offset": offset,
+    #                 "filter.date_from": date_from,
+    #                 "filter.date_to": date_to,
+    #             }
+    #             print(f"Fetching offset {offset}")
+    #             return await self._request(
+    #                 base_url_name=base_url_name,
+    #                 path=path,
+    #                 method="GET",
+    #                 params=params,
+    #             )
+
+    #     tasks = [
+    #         fetch_with_semaphore(offset)
+    #         for offset in range(limit, total_rows, limit)
+    #     ]
+        
+    #     responses = await gather(*tasks)
+
+    #     for resp in responses:
+    #         if isinstance(resp, dict) and "data" in resp:
+    #             response = OperationResponse(**resp)
+    #             all_operations.extend(response.data)
+    #         else:
+    #             raise ValueError("Unexpected response format in one of the responses")
+
+    #     return all_operations
+
+    async def get_transaction_details(self, transaction_id: int) -> List[TransactionDetailModel]:
         """Get detail information about transaction
 
         :param transaction_id: ID операции.
@@ -284,14 +289,127 @@ class ApiClient:
             transaction_details = response_data["data"]
 
             # Проверяем, что data содержит ровно один элемент
-            if isinstance(transaction_details, list) and len(transaction_details) == 1:
-                return TransactionDetailModel(**transaction_details[0])
+            if isinstance(transaction_details, list):
+                return [TransactionDetailModel(**detail) for detail in transaction_details]
             else:
                 raise ValueError(
                     f"Expected 'data' to be a list with exactly one item, got {len(transaction_details)} items"
                 )
         else:
             raise ValueError("Expected response_data to be a dictionary with a 'data' key")
+        
+    async def get_partner_payments(self, pickpoint_id: int, limit: int = 10, offset: int = 0) -> List[WeeklyTransaction]:
+        """Get partner payments by week
+        
+        :param pickpoint_id: Pickpoint ID
+        :param limit: Limit
+        :param offset: Offset
+        """
+
+        base_url_name = "point_balance"  # Базовый URL для платежей
+        path = "/api/v2/partner-payments"
+
+        params = {
+            "limit": limit,
+            "offset": offset,
+            "pickpoint_id": pickpoint_id
+        }   
+        response_data = await self._request(
+            base_url_name=base_url_name,
+            path=path,
+            method="GET",
+            params=params,
+        )
+        if isinstance(response_data, dict) and "payments" in response_data:
+            payments = response_data["payments"]
+
+            if isinstance(payments, list):
+                return [WeeklyTransaction(**week) for week in payments]
+            else:
+                raise ValueError(
+                    f"Expected 'payments' to be a list with exactly one item, got {len(payments)} items"
+                )
+        else:
+            raise ValueError("Expected response_data to be a dictionary with a 'payments' key")
+
+    
+    async def get_handling_report(self) ->TotalHandlingReport:
+        """Get handling report"""
+
+        response_data = await self._request(
+            base_url_name="s_point",
+            path="/api/v2/handing-report-2/pickpoint/list",
+            method="GET"
+        )
+        if isinstance(response_data, dict) and "data" in response_data:
+            try:
+                handling_report = TotalHandlingReport.model_validate(response_data["data"])
+                return handling_report
+            except ValidationError as e:
+                raise ValueError(f"Validation error: {e}")
+        else:
+            raise ValueError("Expected response_data to be a dictionary with a 'data' key")
+
+            
+    async def get_handling_report_by_pickpoint(self, pickpoint_id: int) ->HandlingReport2Model:
+        """Отчет по офису удержано/доплачено
+        
+        :param pickpoint_id: Pickpoint ID
+        :return: HandlingReport2Model
+        """
+        base_url_name = "s_point"  
+        path = "/api/v2/handing-report-2/box-goods/list"
+
+        params = {
+            "pickpoint_id": pickpoint_id
+        }
+        response_data = await self._request(
+            base_url_name=base_url_name,
+            path=path,
+            method="GET",
+            params=params,
+        )
+        if isinstance(response_data, dict) and "data" in response_data:
+            try:
+                handling_report = HandlingReport2Model.model_validate(response_data["data"])
+                return handling_report
+            except ValidationError as e:
+                raise ValueError(f"Validation error: {e}")
+        else:
+            raise ValueError("Expected response_data to be a dictionary with a 'data' key")
+
+    async def get_detail_good_hadling(self, pickpoint_id: int, goods_id: int) ->GoodOperationDetail:
+        """Получения детализации по товару в удержании/доплате
+        
+        :param pickpoint_id: Pickpoint ID
+        :param goods_id: Goods ID
+        :return
+        """
+        base_url_name = "s_point"  
+        path = "/api/v2/handing-report-2/goods"
+
+        params = {
+            "pickpoint_id": pickpoint_id,
+            "goods_id": goods_id
+        }
+        response_data = await self._request(
+            base_url_name=base_url_name,
+            path=path,
+            method="GET",
+            params=params,
+        )
+        if isinstance(response_data, dict) and "data" in response_data:
+            try:
+                goods_detail = GoodOperationDetail.model_validate(response_data["data"])
+                return goods_detail
+            except ValidationError as e:
+                raise ValueError(f"Validation error: {e}")
+        else:
+            raise ValueError("Expected response_data to be a dictionary with a 'data' key")
+
+
+
+
         
 
 

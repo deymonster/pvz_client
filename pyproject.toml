@@ -13,6 +13,22 @@ pydantic-settings = "^2.6.1"
 redis = "^5.2.0"
 
 
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+pytest-asyncio = "^0.24.0"
+pytest-env = "^1.1.5"
+aioresponses = "^0.7.7"
+pytest-cov = "^6.0.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+env = [
+    "DISCOVERY_URL=https://mock-discovery.api",
+    "S_POINT_URL=https://mock-s-point.api",
+    "POINT_RATING_URL=https://mock-point-rating.api/external",
+    "POINT_BALANCE_URL=https://mock-point-rating.api/s4",
+]

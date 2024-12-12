@@ -4,3 +4,6 @@
 __pycache__/
 */__pycache__/
 .env
+main.py
+response.json
+transaction_details.json
