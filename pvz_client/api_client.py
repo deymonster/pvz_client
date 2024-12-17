@@ -10,8 +10,10 @@ from .api_auth import ApiAuth
 from asyncio import gather
 import asyncio
 from pydantic import ValidationError
+import logging
 
-
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class ApiClient:
     """API Client for pvz wb
@@ -74,20 +76,24 @@ class ApiClient:
         """
         url = self._build_url(base_url_name, path)
         
-        async with aiohttp.ClientSession() as session:
-            async with session.request(method, url, params=params, json=data, headers=self.headers) as response:
-                if response.status == 401:
-                    raise HTTPException(response.status, "Unauthorized - Access token may have expired.")
-                elif response.status in {400, 403, 429, 500}:
-                    raise HTTPException(response.status, f"Error: {await response.text()}")
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.request(method, url, params=params, json=data, headers=self.headers) as response:
+                    if response.status == 401:
+                        raise HTTPException(response.status, "Unauthorized - Access token may have expired.")
+                    elif response.status in {400, 403, 429, 500}:
+                        raise HTTPException(response.status, f"Error: {await response.text()}")
 
-                try:
-                    return await response.json()
-                except aiohttp.ContentTypeError:
-                    response_text = await response.text()
-                    content_type = response.headers.get("Content-Type", '')
-                    raise HTTPException(response.status,
-                                        f"Error (ContentTypeError): {response_text} (Content-Type: {content_type})")
+                    try:
+                        return await response.json()
+                    except aiohttp.ContentTypeError:
+                        response_text = await response.text()
+                        content_type = response.headers.get("Content-Type", '')
+                        raise HTTPException(response.status,
+                                            f"Error (ContentTypeError): {response_text} (Content-Type: {content_type})")
+        except Exception as e:
+            logger.error(f"Unexpected error in _request: {e}")
+            raise
 
     async def get_pickpoint_list(self) -> List[PickpointModel]:
         """Retrieve the list of pickpoints with users"""
@@ -113,7 +119,7 @@ class ApiClient:
             raise ValueError("Expected response_data to be a dictionary with a 'data' key")
 
 
-    async def get_owner_info(self, pickpoint_id: int, external_id: int) -> OwnerInfoModel:
+    async def get_owner_info(self) -> OwnerInfoModel:
         """Get information about the pickpoint owner
 
         :param pickpoint_id: Internal pickpoint ID
@@ -155,46 +161,41 @@ class ApiClient:
         else:
             raise ValueError("Expected response_data to be a dictionary with key 'avg_rate'")
 
-    async def get_operations(self, date_from: str, date_to: str) -> List[OperationModel]:
-        """Get all operations for period with pagination
+    async def get_operations(self, date_from: str, date_to: str,  offset: int = 0, limit: int = 100) -> OperationResponse:
+        """Get all operations with  period for a specific offset and limit
 
         :param date_from: Начальная дата (в формате YYYY-MM-DD).
         :param date_to: Конечная дата (в формате YYYY-MM-DD).
+        :param offset: Смещение.
+        :param limit: Лимит.
         :return: Список операций.
         """
 
         base_url_name = "point_balance"
         path = "/api/v1/balance/owner/transactions" 
-        limit = 100
-        offset = 0
-        all_operations = []
-
-        while True:
-            params = {
-                "country": "RU",
-                "filter.limit": limit,
-                "filter.offset": offset,
-                "filter.date_from": date_from,
-                "filter.date_to": date_to,
-            }
-            response_data = await self._request(
-                base_url_name=base_url_name,
-                path=path,
-                method="GET",
-                params=params,
-            )
-            
-            if isinstance(response_data, dict) and "data" in response_data:
-                response = OperationResponse(**response_data)
-                all_operations.extend(response.data)
-
-                if offset + limit >= response.total_rows:
-                    break
-
-                offset += limit
-            else:
-                raise ValueError("Unexpected response format")
-        return all_operations
+        
+       
+        params = {
+            "country": "RU",
+            "filter.limit": limit,
+            "filter.offset": offset,
+            "filter.date_from": date_from,
+            "filter.date_to": date_to,
+        }
+        logger.info(f"Fetching data with params: {params}")
+        response_data = await self._request(
+            base_url_name=base_url_name,
+            path=path,
+            method="GET",
+            params=params,
+        )
+        logger.info(f'Response data - {response_data}')
+        
+        if isinstance(response_data, dict) and "data" in response_data:
+            return OperationResponse(**response_data)
+        else:
+            raise ValueError("Unexpected response format")
+       
 
 
     # async def parallel_get_operations(self, date_from: str, date_to: str) -> List[OperationModel]:
