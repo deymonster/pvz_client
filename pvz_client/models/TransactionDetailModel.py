@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,  Field
 from typing import Optional
 
 
@@ -18,3 +18,9 @@ class TransactionDetailModel(BaseModel):
     sell_summ: float
     created: str
     with_discount: bool
+
+
+class TransactionDetailsResponse(BaseModel):
+    data: Optional[list[TransactionDetailModel]] = Field(
+        None, description="Детализация операций, может быть пустым"
+    )

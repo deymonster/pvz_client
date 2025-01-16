@@ -5,3 +5,5 @@ from .TransactionModel import *
 from .TransactionDetailModel import *
 from .PartnerPaymentsModel import *
 from .HandlingReportModel import *
+from .CategoriesOperations import *
+

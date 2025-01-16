@@ -163,7 +163,7 @@ class ApiClient:
 
     async def get_operations(self, date_from: str, date_to: str,  offset: int = 0, limit: int = 100) -> OperationResponse:
         """Get all operations with  period for a specific offset and limit
-
+        Вкладка - Баланс
         :param date_from: Начальная дата (в формате YYYY-MM-DD).
         :param date_to: Конечная дата (в формате YYYY-MM-DD).
         :param offset: Смещение.
@@ -189,7 +189,7 @@ class ApiClient:
             method="GET",
             params=params,
         )
-        logger.info(f'Response data - {response_data}')
+        
         
         if isinstance(response_data, dict) and "data" in response_data:
             return OperationResponse(**response_data)
@@ -268,7 +268,7 @@ class ApiClient:
 
     #     return all_operations
 
-    async def get_transaction_details(self, transaction_id: int) -> List[TransactionDetailModel]:
+    async def get_transaction_details(self, transaction_id: int) -> TransactionDetailsResponse:
         """Get detail information about transaction
 
         :param transaction_id: ID операции.
@@ -298,7 +298,29 @@ class ApiClient:
                 )
         else:
             raise ValueError("Expected response_data to be a dictionary with a 'data' key")
-        
+
+    async def get_operations_name(self) -> CategoriesOperationsResponse:
+        """"Get categories and names of operations"""
+
+        base_url_name = "point_balance"
+        path = "/api/v1/get-operations"
+
+        response_data = await self._request(
+            base_url_name=base_url_name,
+            path=path,
+            method="GET"
+        )
+
+        if isinstance(response_data, dict) and "categories" and "operations" in response_data:
+            try:
+                return CategoriesOperationsResponse(**response_data)
+            except Exception as e:
+                raise ValueError(f"Invalid response data structure: {e}")
+        else:
+            raise ValueError("Expected response_data to be a dictionary with 'categories' and 'operations' keys")
+ 
+
+
     async def get_partner_payments(self, pickpoint_id: int, limit: int = 10, offset: int = 0) -> List[WeeklyTransaction]:
         """Get partner payments by week
         
