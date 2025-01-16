@@ -18,4 +18,4 @@ class Operation(BaseModel):
 
 class CategoriesOperationsResponse(BaseModel):
     categories: List[Category]
-    opearations: List[Operation]
+    operations: List[Operation]
