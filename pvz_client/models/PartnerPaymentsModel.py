@@ -38,6 +38,10 @@ class WeeklyTransaction(BaseModel):   #  определяет сумму вып�
     other_accrued: float
     pickpoint_payments: List[PickpointPayment]
 
+class WeeklyPaymentsResponse(BaseModel):
+    payments: List[WeeklyTransaction]
+    total_weeks: int
+
 
 
 

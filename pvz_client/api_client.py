@@ -321,7 +321,7 @@ class ApiClient:
  
 
 
-    async def get_partner_payments(self, pickpoint_id: int, limit: int = 10, offset: int = 0) -> List[WeeklyTransaction]:
+    async def get_partner_payments(self, pickpoint_id: int, limit: int = 10, offset: int = 0) -> WeeklyPaymentsResponse:
         """Get partner payments by week
         
         :param pickpoint_id: Pickpoint ID
