@@ -1,7 +1,7 @@
 import aiohttp
 from typing import Optional, Dict, Any, Union
 from .api_config import HTTPException
-from .models import TokenResponse, RequestCodeResponse
+from .models import TokenResponse, RequestCodeResponse, SwitchTokenResponse
 
 
 class ApiAuth:
@@ -17,7 +17,7 @@ class ApiAuth:
         self.base_path = base_path
         self.verify = verify
         self.basic_token = basic_token
-        self.app_version = "v9.7.254"  # TODO: get from config
+        self.app_version = "v9.7.270"  # TODO: get from config
         self.device_uuid = "ba72b509f8d2417a882699ffdcac4f22"
 
 
@@ -40,8 +40,10 @@ class ApiAuth:
     async def _request(self,
                        method: str,
                        path: str,
+                       base_url: Optional[str] = None,
                        params: Optional[Dict[str, Any]] = None,
                        data: Optional[Dict[str, Any]] = None,
+                       headers: Optional[Dict[str, str]] = None,
                        return_status: bool = False) -> Dict[str, Any] | int:
         """Common request method
 
@@ -52,14 +54,20 @@ class ApiAuth:
         :param return_status: Return HTTP status code
         :return: Response
         """
-        url = self.auth_base_path + path
+        base_url = base_url or self.auth_base_path
+        if not path.startswith("/"):
+            path = f"/{path}"
+        url = base_url + path
+        request_headers = self.get_headers.copy()
+        if headers:
+            request_headers.update(headers)
         async with aiohttp.ClientSession() as session:
             async with session.request(
                     method,
                     url,
                     params=params,
                     json=data,
-                    headers=self.get_headers,
+                    headers=request_headers,
             ) as response:
                 if return_status:
                     return response.status
@@ -106,24 +114,45 @@ class ApiAuth:
             "app_version": self.app_version,
             "device_name": "macOS 12.6.3"
         }
-        # if password:
-        #     data.update({
-        #         "grant_type": "password",
-        #         "password": password
-        #     })
-        # elif refresh_token:
-        #     data.update({
-        #         "grant_type": "refresh_token",
-        #         "refresh_token": refresh_token
-        #     })
-        # else:
-        #     raise ValueError("Either password or refresh_token must be provided")
+        
 
         response_data = await self._request("POST", path, data=data)
         if isinstance(response_data, dict):
             return TokenResponse(**response_data)
         else:
             raise HTTPException(response_data, "Unexpected response format")
+        
+    async def switch_token(self, token: str, pickpoint_id: str, external_id: str) -> SwitchTokenResponse:
+        """Update token with pid and xpid
+        
+        :param token: current token
+        :return SwitchTokenResponse
+        """
+        base_url = "https://s-point.wb.ru/s20"
+        path = f"/api/v2/pickpoint/{pickpoint_id}/switch"
+
+        headers = {
+            "x-pickpoint-id": pickpoint_id,
+            "x-pickpoint-external-id": external_id,
+            "x-token": token,  # Добавляем токен в заголовки
+        }
+        response_data = await self._request(
+            method="GET",
+            path=path,
+            base_url=base_url,
+            headers=headers
+        )
+        if isinstance(response_data, dict):
+            return SwitchTokenResponse(**response_data)
+        else:
+            raise HTTPException(response_data, "Unexpected response format")
+
+
+
+
+
+
+
 
 
 async def main():
@@ -147,6 +176,19 @@ async def main():
     except HTTPException as e:
         print(f"Error validating code: {e}")
         return
+
+    pickpoint_id = "65717"
+    external_id = "141685"
+
+    try:
+        modified_token = await api_auth.switch_token(
+            token=token_response.access.token,
+            pickpoint_id=pickpoint_id,
+            external_id=external_id,
+        )
+        print(f"Modified token: {modified_token}")
+    except HTTPException as e:
+        print(f"Error switching token: {e}")
 
 
 if __name__ == "__main__":

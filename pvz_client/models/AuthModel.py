@@ -22,6 +22,11 @@ class TokenResponse(BaseModel):
     ws_access: AccessTokenData
     user_id: int
 
+class SwitchTokenResponse(BaseModel):
+    """Модель для ответа при обновлении токена"""
+    access: AccessTokenData
+    refresh: AccessTokenData
+
 
 
 

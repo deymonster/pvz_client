@@ -55,8 +55,10 @@ class ApiClient:
             "Referer": "https://pvz.wb.ru/",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
             "x-app-type": "prod",
-            "x-app-version": "v9.7.254",
-            "x-token": access_token
+            "x-app-version": "v9.7.270",
+            "x-token": access_token,
+            "x-pickpoint-id": "65717",
+            "x-pickpoint-external-id": "141685"
         }
 
     async def _request(self,
@@ -75,6 +77,7 @@ class ApiClient:
         :return: JSON response data
         """
         url = self._build_url(base_url_name, path)
+
         
         try:
             async with aiohttp.ClientSession() as session:
@@ -321,7 +324,7 @@ class ApiClient:
  
 
 
-    async def get_partner_payments(self, pickpoint_id: int, limit: int = 10, offset: int = 0) -> WeeklyPaymentsResponse:
+    async def get_partner_payments(self, pickpoint_id: int = 141685, limit: int = 10, offset: int = 0) -> WeeklyPaymentsResponse:
         """Get partner payments by week
         
         :param pickpoint_id: Pickpoint ID
