@@ -350,7 +350,10 @@ class ApiClient:
             payments = response_data["payments"]
 
             if isinstance(payments, list):
-                return [WeeklyTransaction(**week) for week in payments]
+                return WeeklyPaymentsResponse(
+                    payments=[WeeklyTransaction(**week) for week in payments],
+                    total_weeks=response_data["total_weeks"]
+                )
             else:
                 raise ValueError(
                     f"Expected 'payments' to be a list with exactly one item, got {len(payments)} items"
